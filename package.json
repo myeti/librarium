@@ -1,6 +1,6 @@
 {
   "name": "librarium",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A personal ebook library manager for EPUB, PDF, MOBI, AZW3 and CBZ files.",
   "author": "Magalon",
   "license": "UNLICENSED",
