@@ -8,7 +8,7 @@ apps that can use its OPDS catalog server, and the systems it runs on.
 | Device | Connection | Librarium sends | Reading progress |
 |---|---|---|---|
 | Kindle (before 2024) | USB drive | **AZW3** (EPUB books are converted); MOBI, AZW3 and PDF as they are | When the Kindle has a page map for the book ([details](#reading-progress-on-a-kindle)) |
-| Kindle (2024 and later) | MTP, **experimental**, off by default | Same as above | Not shown yet |
+| Kindle (2024 and later) | MTP, **experimental**, on by default | Same as above | Not shown yet |
 | Kobo | USB drive | **EPUB** (MOBI and AZW3 books are converted); EPUB, PDF and CBZ as they are | Yes |
 | Any reading app (KOReader, Moon+ Reader, Thorium…) | OPDS over the network | The book files as they are in your library | — |
 
@@ -89,9 +89,9 @@ it is one of them. For example:
 
 The About dialog lists them apart from the USB Kindles, as experimental.
 
-Librarium talks MTP itself (no other software needed), but this support is
-**experimental and off by default**: turn on *MTP Kindles (experimental)* in
-the device settings. It has only been tested against simulated devices so
+Librarium talks MTP itself (no other software needed). This support is
+**experimental**, and on by default: turn off *MTP Kindles (experimental)*
+in the device settings to leave such Kindles alone. It has only been tested against simulated devices so
 far, not on a real 2024 Kindle. On such a Kindle:
 
 - sending, listing, copying back, deleting and releasing ("eject") work like

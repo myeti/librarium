@@ -55,7 +55,7 @@ how to install on each system, and how to work on the code.
 - Kindles receive AZW3 (EPUB books are converted); Kobos receive EPUB (MOBI
   and AZW3 books are converted). See [COMPATIBILITY.md](../COMPATIBILITY.md).
 - Kindles from 2024 on, which connect over MTP rather than as a USB drive:
-  experimental support, off by default (a switch in the device settings).
+  experimental support, on by default (a switch in the device settings).
 
 **Reading apps**
 - A built-in OPDS catalog server, so reading apps such as KOReader,

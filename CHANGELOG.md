@@ -50,8 +50,8 @@ The first release.
   home screen.
 - Copy books from the device into the library, remove them from it, eject
   it (macOS and Linux). Several e-readers at once.
-- **Experimental:** Kindles from 2024 on, which connect over MTP. Off by
-  default.
+- **Experimental:** Kindles from 2024 on, which connect over MTP. On by
+  default; a switch in the device settings turns it off.
 
 ### More books
 

@@ -832,7 +832,7 @@ export default {
         title: 'About Librarium',
         moreCredits: 'These are the main ones: Librarium is built on many more open-source libraries, each under its own licence.',
         mtpHeading: 'From 2024: MTP, experimental',
-        mtpNote: 'Kindles from 2024 on connect over MTP instead of as a USB drive. Their support is experimental and off by default: turn on “MTP Kindles (experimental)” in Settings › Devices.',
+        mtpNote: 'Kindles from 2024 on connect over MTP instead of as a USB drive. Their support is experimental and on by default (“MTP Kindles (experimental)” in Settings › Devices).',
     },
     convert: {
         menuItem: 'Convert to EPUB',

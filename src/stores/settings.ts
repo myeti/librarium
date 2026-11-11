@@ -20,7 +20,7 @@ interface SettingsState {
     libraryRootOverride: string | null
     deviceSubfolder: string
     googleBooksApiKey: string
-    /** Experimental support for MTP Kindles (2024+), off by default. */
+    /** Experimental support for MTP Kindles (2024+), on by default. */
     mtpEnabled: boolean
     /** Ask GitHub for a new version at each launch (Settings › Updates); on by default. */
     autoCheckUpdates: boolean
@@ -46,7 +46,7 @@ export const useSettingsStore = defineStore('settings', {
         libraryRootOverride: null,
         deviceSubfolder: '',
         googleBooksApiKey: '',
-        mtpEnabled: false,
+        mtpEnabled: true,
         autoCheckUpdates: true,
         showNews: true,
     }),
@@ -74,9 +74,9 @@ export const useSettingsStore = defineStore('settings', {
             this.effects = isEffectsLevel(cfg.effects) ? cfg.effects : null
             // Off unless explicitly turned on.
             this.launchSound = cfg.launchSound === true
-            // The backend reads it the same way: anything but `true` is off.
-            this.mtpEnabled = cfg.mtpEnabled === true
-            // On unless explicitly turned off.
+            // On unless explicitly turned off (the backend reads mtpEnabled
+            // the same way).
+            this.mtpEnabled = cfg.mtpEnabled !== false
             this.autoCheckUpdates = cfg.autoCheckUpdates !== false
             this.showNews = cfg.showNews !== false
         },

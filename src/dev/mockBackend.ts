@@ -378,7 +378,7 @@ const handlers: Record<string, (args: Args) => unknown> = {
     detect_devices: () => connectedDevices(),
     detect_device: () => connectedDevices()[0] ?? null,
     get_mtp_status: (): MtpStatus => ({
-        enabled: state.config.mtpEnabled === true,
+        enabled: state.config.mtpEnabled !== false,
         devices: MTP_STATE ? [{
             mountPath: mtpKindle.mountPath,
             name: MTP_STATE === 'ready' ? mtpKindle.name : 'Kindle',

@@ -616,7 +616,7 @@ Settings the backend itself reads:
 
 | Key | Type | Default | Effect |
 |---|---|---|---|
-| `mtpEnabled` | `boolean` | `false` | Experimental support for MTP Kindles (2024+). Off: Librarium only enumerates USB devices to say that one is plugged in, and never opens or claims it. Read at startup and on every `set_config` that contains it; turning it off releases every MTP device once its current operation ends. |
+| `mtpEnabled` | `boolean` | `true` (anything but `false`) | Experimental support for MTP Kindles (2024+). Off: Librarium only enumerates USB devices to say that one is plugged in, and never opens or claims it. Read at startup and on every `set_config` that contains it; turning it off releases every MTP device once its current operation ends. |
 
 ## Menu bar
 
@@ -783,7 +783,7 @@ replacing and deleting safe without matching titles:
 Kindles from 2024 on don't mount as a USB drive: they speak MTP.
 Librarium talks MTP itself (`src-tauri/src/mtp/`: raw USB with nusb on
 macOS and Linux, Windows Portable Devices on Windows), **only when the
-`mtpEnabled` setting is on** (off by default). Nothing here has been
+`mtpEnabled` setting is on** (it is unless set to `false`). Nothing here has been
 validated on a real 2024 Kindle yet (`TODO(device-validation)` in the code).
 
 **How they appear.** A connected MTP Kindle is a `KindleDevice` like any

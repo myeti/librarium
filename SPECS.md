@@ -427,7 +427,7 @@ key optional, a missing key means the default):
 | `opdsCatalogs` | `OpdsCatalogSource[]` | `[]` | opdsSources store |
 | `opdsShareOnLan` | boolean | `false` | opds store |
 | `opdsPassword` | string | generated when LAN sharing first needs one | opds store |
-| `mtpEnabled` | boolean | `false` | settings store **and the backend** (applied at once; saved with `saveConfigOrThrow`) |
+| `mtpEnabled` | boolean | `true` (anything but `false`) | settings store **and the backend** (applied at once; saved with `saveConfigOrThrow`) |
 | `autoCheckUpdates` | boolean | `true` (anything but `false`) | settings store → updates store `checkAtStartup()` |
 | `showNews` | boolean | `true` (anything but `false`) | settings store → updates store `checkAtStartup()` |
 | `analyticsConsent` | `'granted' \| 'denied'` | absent = not asked yet (the consent dialog shows) | analytics store |
@@ -711,7 +711,7 @@ Full details for users in `COMPATIBILITY.md`; the commands in docs/IPC.md
 | Device | Connection | Sent as is | Converted to | Reading progress |
 |--------|------------|------------|--------------|------------------|
 | Kindle (before 2024) | USB mass storage | MOBI (incl. `.azw`), AZW3, PDF | AZW3 (from EPUB; CBZ fails: boko can't read it) | `.sdr` (`.mbs` + `.apnx`) when the page map exists; old firmware `.mbp` (unreliable); `system/*.db` |
-| Kindle (2024+) | MTP, experimental, behind `mtpEnabled` (off by default) | same | same | Backend mirrors `.sdr` over MTP (unverified); the UI doesn't show it |
+| Kindle (2024+) | MTP, experimental, behind `mtpEnabled` (on by default) | same | same | Backend mirrors `.sdr` over MTP (unverified); the UI doesn't show it |
 | Kobo | USB mass storage | EPUB, PDF, CBZ | EPUB (from MOBI, AZW3) | `.kobo/KoboReader.sqlite` |
 
 **Kindles always get AZW3.** A Kindle can't open an EPUB copied over USB
@@ -782,8 +782,8 @@ never kept.
 
 ### MTP Kindles (2024+, experimental)
 
-`src-tauri/src/mtp/` and `commands/device/mtp/`; off unless the
-`mtpEnabled` setting is on (with it off, Librarium only enumerates USB
+`src-tauri/src/mtp/` and `commands/device/mtp/`; on unless the
+`mtpEnabled` setting is `false` (with it off, Librarium only enumerates USB
 devices to say that one is plugged in, and never opens it). Matching:
 Amazon's vendor id `0x1949` with an MTP/PTP interface (Windows: a WPD device
 whose PnP id is an Amazon USB device). Transport: raw PTP/MTP over USB with
@@ -1343,7 +1343,7 @@ after `loadConfig()`), except the OPDS server's on/off and port
 | Background effects | appConfig `effects` | absent → Subtle, or Off when the system asks to reduce motion (followed live) | `off`, `subtle` (fewer particles, ~30 fps) or `on`. |
 | Library folder | appConfig `libraryRootOverride` | `null` (→ `~/Documents/Librarium`) | Override default library root; supports NAS paths. Reachability tested via `check_path_accessible` (3 s timeout). |
 | Device subfolder | appConfig `deviceSubfolder` | `""` | Subfolder inside `/documents` on device. Empty = root. |
-| MTP Kindles (experimental) | **appConfig** `mtpEnabled` | `false` | Read by the backend too, which applies a change at once. Saved with `saveConfigOrThrow`: a failed save puts the switch back and shows a toast. |
+| MTP Kindles (experimental) | **appConfig** `mtpEnabled` | `true` (anything but `false`) | Read by the backend too, which applies a change at once. Saved with `saveConfigOrThrow`: a failed save puts the switch back and shows a toast. |
 | Google Books API key | appConfig `googleBooksApiKey` | `""` | When set, Google Books is preferred over Open Library for metadata. |
 | Theme | **appConfig** `theme` | `"nocturne"` | One of `nocturne`, `saphir`, `folklore`, `cerulean`. Older names are read as their successors: `autumn` → `folklore`, `winter` → `cerulean`, `spring` → `nocturne`, `summer` and `seasonal` → `saphir` (written back the next time the theme changes). |
 | Language | **appConfig** `lang` | browser language | `"en"` or `"fr"`. Defaults to `navigator.language`; overridden by config on mount. |
@@ -1931,7 +1931,7 @@ See `.env.example`. All four are compiled into the bundle (public).
 
 ## Known Limitations & Future Work
 
-- **MTP Kindles (2024+)** are experimental, off by default, and validated
+- **MTP Kindles (2024+)** are experimental (on by default), and validated
   against simulated devices only; their reading progress isn't shown. Code
   paths awaiting a real device are marked `TODO(device-validation)`.
 - **Kindle reading progress** needs the book's `.apnx` page map; Librarium

@@ -95,10 +95,10 @@ describe('Settings › Devices: MTP Kindles', () => {
         return { ...mounted, checkbox: mounted.wrapper.find<HTMLInputElement>('#mtp-setting input[type="checkbox"]') }
     }
 
-    it('shows the saved setting (off unless it is `true`)', async () => {
-        expect((await mtpCheckbox({ mtpEnabled: true })).checkbox.element.checked).toBe(true)
-        expect((await mtpCheckbox({})).checkbox.element.checked).toBe(false)
-        expect((await mtpCheckbox({ mtpEnabled: 'yes' } as unknown as AppConfig)).checkbox.element.checked).toBe(false)
+    it('shows the saved setting (on unless it is `false`)', async () => {
+        expect((await mtpCheckbox({ mtpEnabled: false })).checkbox.element.checked).toBe(false)
+        expect((await mtpCheckbox({})).checkbox.element.checked).toBe(true)
+        expect((await mtpCheckbox({ mtpEnabled: 'yes' } as unknown as AppConfig)).checkbox.element.checked).toBe(true)
     })
 
     it('explains what MTP Kindles are, and what can hold them', async () => {
@@ -109,7 +109,7 @@ describe('Settings › Devices: MTP Kindles', () => {
     })
 
     it('saves the setting, then polls at once to show what the Kindle does', async () => {
-        const { checkbox } = await mtpCheckbox()
+        const { checkbox } = await mtpCheckbox({ mtpEnabled: false })
         mockInvoke.on('detect_devices', () => [])
         mockInvoke.on('get_mtp_status', () => ({
             enabled: true, devices: [{ mountPath: 'mtp://usb-20-1.2', name: 'Kindle', state: 'connecting' }],
@@ -122,7 +122,7 @@ describe('Settings › Devices: MTP Kindles', () => {
     })
 
     it('puts the switch back and says why when it can’t be saved', async () => {
-        const { checkbox } = await mtpCheckbox()
+        const { checkbox } = await mtpCheckbox({ mtpEnabled: false })
         mockInvoke.on('set_config', () => backendError({ code: 'IO', message: 'the settings file is damaged' }))
         await checkbox.setValue(true)
         await flushPromises()

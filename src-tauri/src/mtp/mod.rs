@@ -1,6 +1,6 @@
 //! MTP Kindles: the 2024+ Kindles that don't mount as a USB drive but
 //! speak MTP (Media Transfer Protocol, PTP's extension for files).
-//! Experimental, behind the `mtpEnabled` setting (off by default).
+//! Experimental, behind the `mtpEnabled` setting (on by default).
 //!
 //! Layers, bottom up:
 //!

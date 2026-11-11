@@ -44,7 +44,7 @@
                                 <Badge :tone="d.format">{{ d.format.toUpperCase() }}</Badge>
                             </li>
                         </ul>
-                        <!-- 2024 Kindles: MTP, experimental and off by default (COMPATIBILITY.md). -->
+                        <!-- 2024 Kindles: MTP, experimental, on by default (COMPATIBILITY.md). -->
                         <template v-if="group.mtpDevices">
                             <h5 class="device-col-sub">{{ $t('about.mtpHeading') }}</h5>
                             <ul class="device-list -mtp">

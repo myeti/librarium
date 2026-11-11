@@ -829,7 +829,7 @@ const fr: Translation<typeof en> & { categories: Record<string, string> } = {
         title: 'À propos de Librarium',
         moreCredits: 'Voici les principales : Librarium s’appuie sur bien d’autres bibliothèques libres, chacune sous sa propre licence.',
         mtpHeading: 'Depuis 2024 : MTP, expérimental',
-        mtpNote: 'Les Kindle sortis depuis 2024 se connectent en MTP au lieu d’apparaître comme une clé USB. Leur prise en charge est expérimentale et désactivée par défaut : activez « Kindle MTP (expérimental) » dans Réglages › Liseuses.',
+        mtpNote: 'Les Kindle sortis depuis 2024 se connectent en MTP au lieu d’apparaître comme une clé USB. Leur prise en charge est expérimentale et activée par défaut (« Kindle MTP (expérimental) » dans Réglages › Liseuses).',
     },
     convert: {
         menuItem: 'Convertir en EPUB',

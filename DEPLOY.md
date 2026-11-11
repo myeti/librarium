@@ -143,7 +143,7 @@ To revisit later: Apple Developer ID plus notarisation, and Windows Authenticode
 - **AppImage** updates itself through the in-app updater. **`.deb`** doesn't (see `latest.json` above): users install the next `.deb`.
 - Built on Ubuntu 24.04, so they need glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 and later).
 - The `.deb` depends on `xdg-utils` (opening links and folders) and recommends `gstreamer1.0-plugins-good` (the app's sounds). The AppImage doesn't bundle GStreamer (`bundleMediaFramework: false`, it would add 15–35 MB), so sounds may not play there.
-- **Kindle udev rule** (`src-tauri/linux/70-librarium-kindle.rules`): gives the logged-in user access to Amazon USB devices (vendor `1949`) for the experimental MTP support of 2024+ Kindles (off by default). The `.deb` installs it to `/usr/lib/udev/rules.d/`. AppImage users install it by hand; the file is attached to every release:
+- **Kindle udev rule** (`src-tauri/linux/70-librarium-kindle.rules`): gives the logged-in user access to Amazon USB devices (vendor `1949`) for the experimental MTP support of 2024+ Kindles (on by default). The `.deb` installs it to `/usr/lib/udev/rules.d/`. AppImage users install it by hand; the file is attached to every release:
 
   ```bash
   sudo install -m 644 70-librarium-kindle.rules /etc/udev/rules.d/

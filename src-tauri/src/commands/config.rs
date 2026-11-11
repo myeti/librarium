@@ -117,9 +117,8 @@ pub async fn set_config(
     updates: HashMap<String, serde_json::Value>,
 ) -> AppResult<()> {
     let path = config_path(&app)?;
-    let mtp = updates
-        .get(MTP_ENABLED)
-        .map(|v| v.as_bool().unwrap_or(false));
+    // Like `read_flag`: anything but `false` is on.
+    let mtp = updates.get(MTP_ENABLED).map(|v| v.as_bool() != Some(false));
     blocking(move || update_config(&path, updates)).await?;
     if let (Some(enabled), Some(state)) = (mtp, app.try_state::<MtpState>()) {
         state.set_enabled(enabled);
@@ -127,19 +126,19 @@ pub async fn set_config(
     Ok(())
 }
 
-/// The experimental setting that enables MTP Kindles (2024+): `true` to
-/// use them; absent or anything else means off. Off, Librarium only
-/// enumerates USB devices (to say that one is there) and never claims one.
+/// The setting for MTP Kindles (2024+, experimental): on unless it is
+/// `false`. Off, Librarium only enumerates USB devices (to say that one is
+/// there) and never claims one.
 pub(crate) const MTP_ENABLED: &str = "mtpEnabled";
 
-/// Whether the boolean setting `key` is `true` (at startup; a missing or
-/// damaged file reads as `false`).
-pub(crate) fn read_flag(app: &AppHandle, key: &str) -> bool {
+/// The boolean setting `key` (at startup): its value when it is a boolean,
+/// else `default` (absent, not a boolean, or a missing or damaged file).
+pub(crate) fn read_flag(app: &AppHandle, key: &str, default: bool) -> bool {
     config_path(app)
         .ok()
         .and_then(|path| read_config(&path).ok())
         .and_then(|map| map.get(key).and_then(serde_json::Value::as_bool))
-        .unwrap_or(false)
+        .unwrap_or(default)
 }
 
 #[cfg(test)]

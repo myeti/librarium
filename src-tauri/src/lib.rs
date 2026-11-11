@@ -66,9 +66,9 @@ pub fn run() {
         .setup(|app| {
             logging::install(app.handle());
             log::info!("Librarium {} starting", app.package_info().version);
-            // MTP Kindles: experimental, off unless the setting says so.
+            // MTP Kindles: experimental, on unless the setting turns them off.
             let mtp_enabled =
-                commands::config::read_flag(app.handle(), commands::config::MTP_ENABLED);
+                commands::config::read_flag(app.handle(), commands::config::MTP_ENABLED, true);
             app.state::<mtp::MtpState>().set_enabled(mtp_enabled);
             // The menu bar, macOS only (see menu.rs): English until the
             // frontend calls `set_menu_language`.
