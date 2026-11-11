@@ -1,0 +1,67 @@
+{
+  "name": "librarium",
+  "version": "0.6.0",
+  "description": "A personal ebook library manager for EPUB, PDF, MOBI, AZW3 and CBZ files.",
+  "author": "Magalon",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/tauri.mjs dev",
+    "build": "node scripts/tauri.mjs build",
+    "vue:dev": "vite",
+    "vue:build": "vue-tsc --noEmit && vite build",
+    "preview": "open src-tauri/target/release/bundle/macos/Librarium.app",
+    "tauri": "tauri",
+    "bump": "node scripts/bump.mjs",
+    "release": "node scripts/release.mjs",
+    "validate": "vue-tsc --noEmit && eslint src && vitest run && node scripts/check-ipc.mjs && cargo fmt --manifest-path src-tauri/Cargo.toml --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets && cargo test --manifest-path src-tauri/Cargo.toml",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:fix": "eslint --fix src",
+    "check:ipc": "node scripts/check-ipc.mjs",
+    "check:version": "node scripts/versions.mjs",
+    "notices": "node scripts/notices.mjs",
+    "vue:dev:mock": "vite --mode mock --port 5173"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "dependencies": {
+    "@fontsource-variable/cinzel": "^5.3.0",
+    "@fontsource-variable/cormorant-garamond": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/italiana": "^5.3.0",
+    "@fontsource/poiret-one": "^5.3.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-opener": "^2.7.2",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.10.1",
+    "epubjs": "^0.3.93",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0",
+    "vue-feather": "^2.0.0",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.5.1",
+    "eslint": "^10.6.0",
+    "eslint-plugin-vue": "^10.9.2",
+    "happy-dom": "^21.0.4",
+    "sass": "^1.101.0",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.1.0",
+    "vitest": "^5.1.0",
+    "vue-eslint-parser": "^10.4.2",
+    "vue-tsc": "^3.3.14"
+  },
+  "overrides": {
+    "minimatch": "^11.0.5",
+    "@xmldom/xmldom": "^0.8.15"
+  }
+}

@@ -1,0 +1,127 @@
+name: CI
+
+# Pushes and pull requests to main and the overhaul/* branches: frontend
+# checks, rustfmt, clippy and tests on all three desktop OSes, and cargo-deny.
+#
+# TODO(pin-actions): third-party actions are referenced by version tag because
+# their commit SHAs couldn't be looked up offline when this was written. Pin
+# each one to its full commit SHA with the tag as a comment, e.g.
+#   uses: actions/checkout@<40-char sha> # v5.0.0
+# (`pinact run` or Dependabot's github-actions updates can do and maintain it).
+
+on:
+  push:
+    branches: [main, 'overhaul/**']
+  pull_request:
+    branches: [main, 'overhaul/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-latest
+          - name: Windows x64
+            os: windows-latest
+          - name: Linux x64
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5 # TODO(pin-actions)
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install Linux build dependencies (Tauri v2, WebKitGTK 4.1)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config file \
+            libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
+            libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libssl-dev libxdo-dev
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Type check
+        run: npx vue-tsc --noEmit
+
+      - name: ESLint
+        run: npx eslint src
+
+      - name: Unit tests (vitest)
+        run: npx vitest run
+
+      - name: IPC contract check
+        run: node scripts/check-ipc.mjs
+
+      - name: Version consistency
+        run: node scripts/versions.mjs
+
+      - name: Build frontend
+        run: npx vite build
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: |
+          rustup toolchain install --no-self-update
+          rustc --version
+          cargo clippy --version
+
+      - uses: Swatinem/rust-cache@v2 # TODO(pin-actions)
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  cargo-deny:
+    name: cargo deny
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+
+      - uses: EmbarkStudios/cargo-deny-action@v2 # TODO(pin-actions)
+        with:
+          manifest-path: src-tauri/Cargo.toml
+          # Default features (what ships), not the action's --all-features.
+          arguments: ''
+          command: check
+          # No --config (cargo-deny rejects it after `check`): deny.toml is at
+          # the repository root, where cargo-deny looks by itself (from the
+          # working directory, and up from the manifest's folder).

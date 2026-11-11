@@ -1,0 +1,13 @@
+# Librarium: let the logged-in desktop user open Amazon Kindle e-readers over
+# USB without root, for MTP transfers (2024+ Kindles).
+# Vendor id 0x1949 = Amazon (Lab126). Mass-storage Kindles are unaffected.
+#
+# Installed by the .deb to /usr/lib/udev/rules.d/. AppImage users can copy it
+# to /etc/udev/rules.d/, then run:
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+# and reconnect the Kindle.
+#
+# "uaccess" grants access to the user of the active local session (systemd-logind)
+# and must be applied before 73-seat-late.rules, hence the 70- prefix.
+# GNOME/KDE MTP backends (gvfs-mtp, kio-mtp) may still grab the device first.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1949", TAG+="uaccess"

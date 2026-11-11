@@ -1,0 +1,6 @@
+# Pinned so local builds, CI and releases use the same compiler (rustup
+# installs it on first use). Bump deliberately, e.g. when updating
+# dependencies, and fix new clippy lints in the same change.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]

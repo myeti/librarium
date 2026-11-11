@@ -1,0 +1,156 @@
+[package]
+name = "librarium"
+version = "0.6.0"
+description = "A modern ebook library manager"
+authors = ["Magalon"]
+license = "LicenseRef-Proprietary"
+edition = "2021"
+
+[lib]
+name = "librarium_lib"
+# Desktop only: staticlib/cdylib are for the iOS/Android entry points, which
+# this app doesn't ship, and only cost link time and disk.
+crate-type = ["rlib"]
+
+[[bin]]
+name = "librarium"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# protocol-asset: covers are served to the webview as files (`convertFileSrc`)
+# from `<library>/.covers`, the only folder added to the asset scope at runtime.
+tauri = { version = "2", features = ["protocol-asset"] }
+# The OPDS server (src/commands/opds.rs and opds/). Default features: HTTP/1
+# only, which is all e-readers speak.
+axum = "0.8"
+# OPDS downloads and covers: streamed from disk with HTTP Range requests,
+# Last-Modified and HEAD handled (`ServeFile`). Already compiled for reqwest.
+tower-http = { version = "0.6", default-features = false, features = ["fs"] }
+# `ServiceExt::oneshot`, to call `ServeFile` from an OPDS handler (and the
+# router from tests). Already compiled for axum, with the same feature.
+tower = { version = "0.5", default-features = false, features = ["util"] }
+# The `Content-Type` handed to `ServeFile` (axum and tower-http use it too).
+mime = "0.3"
+# An OPDS response body that keeps its concurrency slot until it has been
+# sent (opds/limits.rs). Already compiled for axum.
+http-body = "1"
+# The OPDS catalog URL as a QR code (SVG) for Settings › OPDS. No `image`
+# feature: only the SVG renderer is used.
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+tauri-plugin-dialog = "2"
+# Opening links in the browser and revealing files in Finder/Explorer.
+# Replaces tauri-plugin-shell, which could also spawn programs.
+tauri-plugin-opener = "2"
+# Relaunching the app after an update (`relaunch()` in the frontend).
+tauri-plugin-process = "2"
+tauri-plugin-updater = "2"
+# The log file (src/logging.rs): every debug-panel line also goes through
+# the `log` crate into `<app log dir>/Librarium.log`.
+tauri-plugin-log = "2"
+log = "0.4"
+# A second launch focuses the running window instead of opening another
+# instance that would write the same library index.
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Only what the code uses (`full` also brought process, signal, parking_lot…).
+# `macros` (`#[tokio::test]`) is enabled for the tests only, below.
+tokio = { version = "1", features = ["rt", "time", "net", "sync", "fs", "io-util"] }
+# Structured command errors (src/error.rs). The same major version as boko's.
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2"
+# EPUB package documents (OPF, container.xml): parsing and surgical edits.
+# Same version as boko and plist use, so it is compiled once.
+quick-xml = "0.42"
+# PDF metadata and first-page covers. Held at 0.42 on purpose: 0.43+ moves
+# to the RustCrypto 0.11 generation (digest, sha2, md-5…) and adds brotli 5,
+# while Tauri is still on 0.10 / brotli 6 — 18 more duplicated crates for
+# nothing this app uses (the code builds unchanged on 0.47). Default features
+# (chrono, jiff, time, rayon date/parallel helpers) aren't used either.
+lopdf = { version = "0.42", default-features = false }
+# The same major version and features as boko's, so zip is compiled once.
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+# Vendored boko 0.6.0 with a patched KF8 chunker (src/mobi/skeleton.rs):
+# upstream splits chapters into fragments mid-element, which makes Kindle
+# drop whole fragments (~3 pages) when rendering AZW3. Its default features
+# are the command-line tool (clap, ion-rs) and image re-compression, which
+# the app doesn't use.
+boko = { version = "0.6", path = "vendor/boko", default-features = false, features = ["parallel"] }
+# Free and total space of a volume (device transfers). The maintained
+# successor of fs2; file locking itself uses std (`File::lock`).
+fs4 = { version = "1", default-features = false }
+trash = "5"
+tempfile = "3"
+rusqlite = { version = "0.41", features = ["bundled"] }
+# NFC-normalised index keys (macOS/SMB can report NFD file names).
+unicode-normalization = "0.1"
+# Host name recorded in .librarium/lock.json (two computers sharing a NAS library).
+gethostname = "1"
+# The same version as boko's, so it is compiled once.
+base64 = "0.23"
+whatlang = "0.18"
+# One HTTP stack (see src/net.rs), shared with tauri-plugin-updater: reqwest
+# 0.13 on rustls with the `ring` provider (installed by net.rs), certificates
+# checked against the OS store (rustls-platform-verifier).
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "http2", "system-proxy", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+# Cover thumbnails. Only the formats covers are accepted in (sniff::ImageKind).
+# A direct dependency: boko, without its default features, doesn't bring it.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+
+# MTP Kindles (2024+, src/mtp/): raw PTP/MTP over USB bulk endpoints on
+# macOS and Linux, which have no MTP driver. Pure Rust (IOKit / usbfs), no
+# libusb. Windows uses its own MTP stack (WPD, below) instead.
+[target.'cfg(not(windows))'.dependencies]
+nusb = "0.2"
+
+# `fsync(2)` (fsutil::sync_file): on Apple platforms std's `sync_all` is
+# `F_FULLFSYNC`, which network and FAT filesystems (smbfs, msdosfs) may
+# reject; plain `fsync` is the fallback. Already compiled for std, tokio…
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# Windows Portable Devices (WPD), Windows' MTP stack, for MTP Kindles
+# (src/mtp/wpd.rs). The windows-rs release Tauri already uses, so it isn't
+# compiled twice.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Devices_PortableDevices",
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Variant",
+    "Win32_UI_Shell_PropertiesSystem",
+] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros"] }
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+codegen-units = 1
+lto = true
+# Conversion, zip rewriting and cover processing are CPU-bound: optimise for
+# speed rather than size ("s").
+opt-level = 3
+# unwind (not abort) so a panic while parsing one malformed book fails that
+# command/job instead of killing the whole app.
+panic = "unwind"
+# Symbols for crash reports: line tables are generated, then moved out of the
+# shipped binary. The release workflow archives them as a CI artifact.
+#   macOS:   librarium.dSYM next to the binary (split-debuginfo = "packed").
+#   Windows: librarium.pdb. MSVC writes no PDB at all when stripping, so CI
+#            sets CARGO_PROFILE_RELEASE_STRIP=none there (the .exe holds no
+#            debug info anyway).
+#   Linux:   CI builds with split-debuginfo off and strip none, then splits a
+#            librarium.debug file out with objcopy before bundling.
+debug = "line-tables-only"
+split-debuginfo = "packed"
+strip = "debuginfo"

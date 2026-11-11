@@ -1,0 +1,6 @@
+# Style-only commits, skipped by `git blame`:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub applies it automatically.)
+
+# rustfmt over src-tauri/src
+7fdd663fa04ce9a5bda0f379cb3c59690f067b04

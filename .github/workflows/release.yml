@@ -1,0 +1,408 @@
+name: Release
+
+# Builds, signs and publishes a release when a version tag is pushed
+# (`npm run release` does that; see DEPLOY.md).
+#
+#   check    tag == v<package.json> == Cargo.toml/Cargo.lock, tag on main,
+#            release notes = the annotated tag's message
+#   build    one unsigned build per platform (no signing key in these jobs,
+#            which run npm code); symbols kept as artifacts
+#   sign     signs the updater artifacts with the minisign key; runs no
+#            project dependency code (only Node, our scripts and the Tauri CLI)
+#   publish  latest.json + SHA256SUMS, draft release on this repository,
+#            re-download + verify, then publish (the workflow's own token:
+#            no other repository, no personal access token)
+#
+# No manual trigger on purpose: a run on a branch would publish latest.json
+# for a non-version ref and break the updater for every install.
+#
+# TODO(pin-actions): third-party actions are referenced by version tag because
+# their commit SHAs couldn't be looked up offline when this was written. Pin
+# each one to its full commit SHA with the tag as a comment (`pinact run`, or
+# Dependabot's github-actions updates), starting with this workflow.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check tag and versions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5 # TODO(pin-actions)
+        with:
+          node-version-file: .nvmrc
+
+      - name: Tag, package.json, Cargo.toml and Cargo.lock agree
+        id: version
+        run: |
+          node scripts/versions.mjs --tag "$GITHUB_REF_NAME"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Tagged commit is on main
+        run: |
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::$GITHUB_REF_NAME points to $(git rev-parse --short HEAD), which is not on main"
+            exit 1
+          fi
+
+      - name: Not already published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Published releases are public; a leftover draft is reused by `publish`.
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" --silent 2>/dev/null; then
+            echo "::error::$GITHUB_REF_NAME is already published"
+            exit 1
+          fi
+
+      - name: Release notes from the tag message
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Read through the API: actions/checkout may turn annotated tags into
+          # lightweight ones, and git can't fetch again without credentials.
+          ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME")
+          if [ "$(jq -r .object.type <<<"$ref")" != tag ]; then
+            echo "::error::$GITHUB_REF_NAME is a lightweight tag. Tag with \`npm run release\` (annotated, the message is the release notes)."
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<<"$ref")" --jq .message \
+            | sed '/^-----BEGIN \(PGP\|SSH\) SIGNATURE-----$/,$d' > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::the tag message (release notes) is empty"
+            exit 1
+          fi
+          cat notes.md
+
+      - uses: actions/upload-artifact@v4 # TODO(pin-actions)
+        with:
+          name: release-notes
+          path: notes.md
+          if-no-files-found: error
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: check
+    strategy:
+      fail-fast: true
+      matrix:
+        # macOS: two native builds rather than one universal binary. Each user
+        # downloads (and updates) half the bytes, both run in parallel, and
+        # each updater entry gets its own architecture's tarball. Intel can be
+        # dropped later by deleting one entry.
+        include:
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+            strip: debuginfo
+            split-debuginfo: packed
+          - name: macOS Intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+            strip: debuginfo
+            split-debuginfo: packed
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+            strip: none          # MSVC writes no PDB when stripping
+            split-debuginfo: packed
+          - name: Linux x64
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+            strip: none          # split with objcopy below instead
+            split-debuginfo: 'off'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      TARGET: ${{ matrix.target }}
+      BUNDLES: ${{ matrix.bundles }}
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+
+      # No npm/cargo caches here: a cache written by a CI run (which executes
+      # npm code) could otherwise end up inside a release build.
+      - uses: actions/setup-node@v5 # TODO(pin-actions)
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Linux build dependencies (Tauri v2, WebKitGTK 4.1)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config file patchelf xdg-utils \
+            libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev \
+            libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+            libssl-dev libxdo-dev
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        run: |
+          rustup toolchain install --no-self-update
+          rustup target add "$TARGET"
+          rustc --version
+
+      - name: npm ci
+        run: npm ci
+
+      - name: Build (unsigned)
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+          VITE_UMAMI_WEBSITE_ID: ${{ secrets.VITE_UMAMI_WEBSITE_ID }}
+          VITE_UMAMI_URL: ${{ secrets.VITE_UMAMI_URL }}
+          CARGO_PROFILE_RELEASE_STRIP: ${{ matrix.strip }}
+          CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: ${{ matrix.split-debuginfo }}
+          # linuxdeploy (AppImage): system libraries are already stripped and its
+          # bundled strip fails on recent toolchains; run without FUSE.
+          NO_STRIP: 'true'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          # bundle.createUpdaterArtifacts is false in tauri.conf.json: nothing is
+          # signed here, the `sign` job does it. scripts/tauri.mjs runs the
+          # Tauri CLI with the VITE_* servers added to the CSP.
+          if [ "$RUNNER_OS" = Linux ]; then
+            node scripts/tauri.mjs build --ci --target "$TARGET" --no-bundle -- --locked
+            bin="src-tauri/target/$TARGET/release/librarium"
+            objcopy --only-keep-debug --compress-debug-sections=zlib "$bin" "$bin.debug"
+            objcopy --strip-debug --add-gnu-debuglink="$bin.debug" "$bin"
+            node scripts/tauri.mjs bundle --ci --target "$TARGET" --bundles "$BUNDLES"
+          else
+            node scripts/tauri.mjs build --ci --target "$TARGET" --bundles "$BUNDLES" -- --locked
+          fi
+
+      - name: Collect installers, updater artifacts and symbols
+        run: |
+          shopt -s nullglob
+          one() {
+            local m=( $1 )
+            if [ ${#m[@]} -ne 1 ]; then echo "::error::expected one file matching $1, found ${#m[@]}: ${m[*]}" >&2; return 1; fi
+            printf '%s\n' "${m[0]}"
+          }
+          rel="src-tauri/target/$TARGET/release"
+          b="$rel/bundle"
+          mkdir -p out symbols
+          case "$TARGET" in
+            *-apple-darwin)
+              arch=x64; [ "$TARGET" = aarch64-apple-darwin ] && arch=aarch64
+              app=$(one "$b/macos/*.app")
+              dmg=$(one "$b/dmg/*_${VERSION}_${arch}.dmg")
+              dsym=$(one "$rel/librarium.dSYM")
+              # Updater artifact: the .app as a gzipped tar with the bundle as its
+              # top-level directory (the layout `tauri build` would produce).
+              COPYFILE_DISABLE=1 tar --no-xattrs -czf "out/Librarium_${VERSION}_${arch}.app.tar.gz" \
+                -C "$(dirname "$app")" "$(basename "$app")"
+              cp "$dmg" out/
+              # -L: cargo leaves librarium.dSYM as a symlink to deps/; copy
+              # the bundle itself, not a link that dangles once copied.
+              cp -RL "$dsym" symbols/
+              ;;
+            *-windows-msvc)
+              nsis=$(one "$b/nsis/*_${VERSION}_x64-setup.exe")
+              msi=$(one "$b/msi/*_${VERSION}_x64*.msi")
+              pdb=$(one "$rel/librarium.pdb")
+              cp "$nsis" "$msi" out/
+              cp "$pdb" symbols/
+              ;;
+            *-linux-gnu)
+              appimage=$(one "$b/appimage/*_${VERSION}_amd64.AppImage")
+              deb=$(one "$b/deb/*_${VERSION}_amd64.deb")
+              cp "$appimage" "$deb" src-tauri/linux/70-librarium-kindle.rules out/
+              cp "$rel/librarium.debug" symbols/
+              ;;
+          esac
+          if [ -z "$(find symbols -type f -print -quit)" ]; then
+            echo "::error::no debug symbols were collected for $TARGET"; ls -laR symbols; exit 1
+          fi
+          ls -l out symbols
+
+      - uses: actions/upload-artifact@v4 # TODO(pin-actions)
+        with:
+          name: unsigned-${{ matrix.target }}
+          path: out/
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4 # TODO(pin-actions)
+        with:
+          name: symbols-${{ needs.check.outputs.version }}-${{ matrix.target }}
+          path: symbols/
+          if-no-files-found: error
+          retention-days: 90
+
+  sign:
+    name: Sign updater artifacts
+    needs: [check, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Optional hardening (environments are available now that the repository
+    # is public): create an environment "release" restricted to v* tags, move
+    # the two signing secrets into it, and uncomment:
+    # environment: release
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5 # TODO(pin-actions)
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/download-artifact@v4 # TODO(pin-actions)
+        with:
+          pattern: unsigned-*
+          merge-multiple: true
+          path: assets
+
+      - name: Install the Tauri CLI alone (lockfile version, no install scripts)
+        run: |
+          # A throwaway project whose lockfile holds only the @tauri-apps/cli
+          # entries of package-lock.json (same integrity hashes); none of the
+          # app's other dependencies are installed, no install script runs.
+          dir="$RUNNER_TEMP/tauri-cli"
+          node scripts/ci/tauri-cli-project.mjs "$dir"
+          (cd "$dir" && npm ci --ignore-scripts --no-audit --no-fund)
+          echo "TAURI_CLI=$dir/node_modules/.bin/tauri" >> "$GITHUB_ENV"
+          "$dir/node_modules/.bin/tauri" --version
+
+      - name: Sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # Empty until the key is regenerated with a password (DEPLOY.md);
+          # an empty value works for the current password-less key.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then echo "::error::secret TAURI_SIGNING_PRIVATE_KEY is not set"; exit 1; fi
+          shopt -s nullglob
+          files=(assets/*.app.tar.gz assets/*-setup.exe assets/*.msi assets/*.AppImage)
+          if [ ${#files[@]} -ne 5 ]; then
+            echo "::error::expected 5 updater artifacts, found ${#files[@]}"; ls -l assets; exit 1
+          fi
+          mkdir -p signatures
+          for f in "${files[@]}"; do
+            # --app-version binds the signature to this version (trusted comment).
+            "$TAURI_CLI" signer sign --app-version "$VERSION" "$f" > /dev/null
+            mv "$f.sig" signatures/
+            echo "signed $(basename "$f")"
+          done
+
+      - name: Verify signatures against tauri.conf.json (Node built-ins only)
+        run: |
+          node scripts/ci/minisign.mjs --version "$VERSION" --sig-dir signatures \
+            assets/*.app.tar.gz assets/*-setup.exe assets/*.msi assets/*.AppImage
+
+      - uses: actions/upload-artifact@v4 # TODO(pin-actions)
+        with:
+          name: signatures
+          path: signatures/
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish the release
+    needs: [check, build, sign]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # The only job that writes: it creates and publishes this repository's release.
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin-actions)
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5 # TODO(pin-actions)
+        with:
+          node-version-file: .nvmrc
+
+      - uses: actions/download-artifact@v4 # TODO(pin-actions)
+        with:
+          pattern: unsigned-*
+          merge-multiple: true
+          path: assets
+
+      - uses: actions/download-artifact@v4 # TODO(pin-actions)
+        with:
+          name: signatures
+          path: assets
+
+      - uses: actions/download-artifact@v4 # TODO(pin-actions)
+        with:
+          name: release-notes
+          path: notes
+
+      - name: latest.json, SHA256SUMS and release notes
+        run: |
+          echo "BASE_URL=https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" >> "$GITHUB_ENV"
+          node scripts/ci/release-assets.mjs manifest --dir assets --version "$VERSION" \
+            --notes notes/notes.md --base-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" \
+            --template .github/release-notes-template.md --body-out release-body.md
+          cat assets/latest.json
+
+      - name: Verify before upload
+        run: node scripts/ci/release-assets.mjs verify --dir assets --version "$VERSION" --base-url "$BASE_URL"
+
+      - name: Upload to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if draft=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$draft" != true ]; then echo "::error::$TAG is already published"; exit 1; fi
+            echo "Reusing the existing draft for $TAG"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "Librarium $TAG" --notes-file release-body.md
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "Librarium $TAG" --notes-file release-body.md
+          fi
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber assets/*
+
+      - name: Verify what the draft serves
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir verify
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir verify
+          node scripts/ci/release-assets.mjs verify --dir verify --version "$VERSION" --base-url "$BASE_URL"
+          # Exactly the files built in this run, byte for byte (no leftovers from an earlier attempt).
+          diff <(cd assets && sha256sum -- * | sort -k2) <(cd verify && sha256sum -- * | sort -k2)
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          echo "Published https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"

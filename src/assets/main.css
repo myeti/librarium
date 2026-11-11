@@ -1,0 +1,703 @@
+/*
+ * Librarium's global stylesheet.
+ *
+ *  1. Theme palettes (themes.css): every colour token, per theme.
+ *  2. Design tokens that don't depend on the theme: spacing, type, radii,
+ *     layers, motion, focus; plus the few colour tokens derived from the
+ *     palette (computed per theme by the browser).
+ *  3. Base styles: a small reset (no CSS framework).
+ *  4. The legacy global classes still used by templates: .button, .input,
+ *     .select, .tag, .delete, .modal*, .form-*, .progress-*, .spinning.
+ *     New code uses the components in src/components/ui/ instead (SPECS.md,
+ *     "UI kit"); these classes go away as screens move onto the kit.
+ *
+ * Every font is bundled (@fontsource packages, imported in main.ts): Inter
+ * for the interface, and each theme's cover lettering (themes.css). A
+ * Google Fonts @import was blocked by the CSP in release builds, and would
+ * have been a request to Google on every launch.
+ *
+ * The design (themes as book covers, ornaments, the page's layers) is
+ * described in docs/DESIGN.md.
+ */
+@import './themes.css';
+
+
+/* ── 2. Design tokens ───────────────────────────────────────── */
+:root {
+    /* Spacing scale: margins, paddings and gaps in new code come from here. */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+
+    /* Type scale. 12px is the smallest text anywhere in the app. */
+    --font-size-xs:  12px;   /* captions, badges, hints */
+    --font-size-sm:  13px;   /* controls, secondary text */
+    --font-size-md:  14px;   /* body (the root size) */
+    --font-size-lg:  16px;   /* dialog titles, emphasis */
+    --font-size-xl:  20px;   /* section titles */
+    --font-size-2xl: 24px;   /* view titles */
+    --font-size-3xl: 32px;   /* hero / display */
+    --line-height-tight: 1.25;
+    --line-height: 1.5;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /*
+     * Families. 'Inter Variable' is the bundled font; 'Inter' catches a
+     * system install. The display, heading and serif families (and their
+     * weights and tracking) belong to each theme: see themes.css.
+     */
+    --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+    /* Radii: books have sharp corners, panels soft ones. */
+    --radius-cover: 3px;
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-control: 10px;
+    --radius:    14px;
+    --radius-lg: 22px;
+    --radius-full: 999px;
+
+    /*
+     * Stacking layers, lowest to highest. Native dialogs (BaseModal) are in
+     * the browser's top layer, above all of these: menus opened inside a
+     * dialog are rendered inside it for that reason.
+     */
+    --z-effects: 0;      /* background snow, particles */
+    --z-raised: 2;       /* a card above its neighbours */
+    --z-sticky: 10;      /* sticky headers, the detail panel */
+    --z-drop-zone: 50;   /* the drag-and-drop overlay */
+    --z-modal: 100;      /* legacy .modal dialogs (not yet on BaseModal) */
+    --z-popover: 200;    /* menus, dropdowns, popovers */
+    --z-overlay: 300;    /* full-screen overlays: user picker, duplicates */
+    --z-reader: 500;     /* the reader */
+    --z-toast: 9000;     /* notifications */
+    --z-debug: 9999;     /* the debug panel */
+
+    /* Motion. Durations shrink to ~0 under prefers-reduced-motion (below). */
+    --duration-fast: 100ms;
+    --duration: 160ms;
+    --duration-slow: 260ms;
+    --duration-sheen: 900ms; /* the foil glint across a cover or a button */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --ease-lift: cubic-bezier(0.2, 0.9, 0.3, 1.15); /* a book lifted off the shelf: a little overshoot */
+    --transition: var(--duration) ease;
+
+    /* Focus: one visible ring for every keyboard-focused control. */
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* Controls. */
+    --control-height: 32px;
+    --control-height-sm: 26px;
+
+    /* Layout. */
+    --sidebar-width: 236px;
+    --topbar-height: 56px;
+    --cover-ratio: 2 / 3.2;
+
+    /*
+     * Colour tokens derived from the theme palette. They are declared on the
+     * same element as the palette (<html>), so each theme gets its own value.
+     */
+    --white: #fff;               /* for what must stay white in every theme (QR codes) */
+    /* --on-accent and --on-danger (text on solid fills) are set by each theme. */
+    /* Hovered primary button: a little darker, so --on-accent stays readable. */
+    --accent-hover: color-mix(in srgb, var(--accent-strong) 85%, var(--accent-dark));
+    --focus-ring-color: var(--accent-text);
+    --color-on-device: var(--success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 1ms;
+        --duration: 1ms;
+        --duration-slow: 1ms;
+        --duration-sheen: 1ms;
+    }
+}
+
+
+/* ── 3. Base ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+    /* The page colour behind everything, also where macOS rubber-bands. */
+    background-color: var(--bg);
+    min-width: 300px;
+    /* Panels slide in from the right: never a horizontal scrollbar for that. */
+    overflow-x: hidden;
+    text-rendering: optimizeLegibility;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #app {
+    height: 100%;
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+    line-height: var(--line-height);
+    -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * The page, back to front: the theme's sky (a vertical gradient), two
+ * coloured glows, its motif (stars, sparkles, florets: two sparse tiles of
+ * unrelated sizes, so the repeat never lines up into a grid), and
+ * over it all a faint paper grain (body::before), so large flat areas look
+ * printed rather than digital. Content sits above the grain.
+ */
+body {
+    font-weight: var(--font-weight-regular);
+    background:
+        var(--motif),
+        radial-gradient(ellipse 70% 55% at 8% -8%, var(--body-overlay-1) 0%, transparent 62%),
+        radial-gradient(ellipse 55% 50% at 96% 106%, var(--body-overlay-2) 0%, transparent 62%),
+        var(--sky);
+    background-color: var(--bg);
+    background-attachment: fixed;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+#app { position: relative; }
+
+h1, h2, h3, h4, h5, h6 { font-size: 100%; font-weight: var(--font-weight-regular); }
+strong { font-weight: var(--font-weight-bold); }
+small { font-size: 0.875em; }
+a { color: inherit; text-decoration: none; cursor: pointer; }
+ul, ol { list-style: none; }
+img, video { display: block; height: auto; max-width: 100%; }
+iframe { border: 0; }
+fieldset { border: none; }
+table { border-collapse: collapse; border-spacing: 0; }
+td, th { padding: 0; vertical-align: top; }
+td:not([align]), th:not([align]) { text-align: inherit; }
+input[type="checkbox"], input[type="radio"] { vertical-align: baseline; accent-color: var(--accent-strong); }
+input[type="range"] { accent-color: var(--accent-strong); }
+input, select, textarea, optgroup { font-family: inherit; }
+
+/* Buttons start bare: every button styles itself (or uses .button / BaseButton). */
+button {
+    appearance: none;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1em;
+    transition-duration: var(--duration);
+    transition-property: background-color, border-color, color;
+}
+
+code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    padding: 0.125em 0.375em;
+    border-radius: var(--radius-xs);
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+pre {
+    font-family: var(--font-mono);
+    overflow-x: auto;
+    white-space: pre;
+}
+pre code { padding: 0; background: none; }
+
+/*
+ * One focus ring for keyboard users, in every theme (≥3:1 on all surfaces,
+ * see themes.test.ts). Mouse clicks don't show it (:focus-visible).
+ */
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-color);
+    border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-color-hover); }
+
+/* ── Cover lettering ────────────────────────────────────────── */
+
+/*
+ * The theme's display face, as on a book cover: the wordmark, view titles,
+ * hero text. Only at 22px and up (some faces are hairline-thin).
+ */
+.display-title {
+    font-family: var(--font-display);
+    font-weight: var(--display-weight);
+    letter-spacing: var(--display-tracking);
+    text-transform: uppercase;
+    line-height: var(--line-height-tight);
+    color: var(--text-primary);
+}
+
+/* Dialog and section titles: the theme's sturdier heading face. */
+.heading-title {
+    font-family: var(--font-heading);
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
+    line-height: var(--line-height-tight);
+    color: var(--text-primary);
+}
+
+/*
+ * Lettering in the theme's metal (gold leaf, coral copper, silver): large
+ * decorative text only (the wordmark). Without background-clip support the
+ * text keeps its accent colour.
+ */
+.foil-text {
+    color: var(--accent-text);
+}
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+    .foil-text {
+        background: var(--foil);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        /* The highlight drifts slowly across the letters (not with reduced motion). */
+        animation: librarium-foil 9s ease-in-out infinite alternate;
+    }
+}
+@keyframes librarium-foil {
+    from { background-position: 0% 50%; }
+    to   { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .foil-text { animation: none; }
+}
+
+/* ── Ornaments ──────────────────────────────────────────────── */
+
+/*
+ * The theme's ornaments, painted in its metal: <span class="ornament -rule"
+ * aria-hidden="true">. The shapes are masks (themes.css: --ornament-rule,
+ * --ornament-corner, --cover-art), so one drawing serves every edition and
+ * takes whatever paint is set (--ornament-paint, the foil by default).
+ * Size one dimension; the aspect ratio gives the other.
+ */
+.ornament {
+    display: block;
+    flex-shrink: 0;
+    pointer-events: none;
+    background: var(--ornament-paint, var(--foil));
+    -webkit-mask: var(--ornament-image) center / contain no-repeat;
+    mask: var(--ornament-image) center / contain no-repeat;
+}
+.ornament.-rule   { --ornament-image: var(--ornament-rule);   aspect-ratio: 10 / 1; }
+.ornament.-corner { --ornament-image: var(--ornament-corner); aspect-ratio: 1; }
+.ornament.-art    { --ornament-image: var(--cover-art);       aspect-ratio: 3 / 4; }
+
+/* ── Utility ────────────────────────────────────────────────── */
+.sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ── 4. Legacy global classes ───────────────────────────────── */
+
+/* Buttons: .button [.is-primary | .is-ghost | .is-danger | .is-icon] [.is-small]. Prefer BaseButton. */
+.button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    height: auto;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--border);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    font-family: inherit;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: top;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), box-shadow var(--transition), border-color var(--transition);
+    background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-sm);
+}
+.button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+
+.button.is-primary {
+    background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent-dark) 100%);
+    color: var(--on-accent);
+    border: none;
+    font-weight: var(--font-weight-semibold);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-dark) 34%, transparent), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.button.is-primary:hover {
+    background: linear-gradient(135deg, var(--accent-hover) 0%, var(--accent-dark) 100%);
+    box-shadow: 0 6px 22px color-mix(in srgb, var(--accent-dark) 42%, transparent), inset 0 1px 0 rgba(255,255,255,.26);
+    color: var(--on-accent);
+}
+
+.button.is-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    box-shadow: none;
+}
+.button.is-ghost:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border);
+    box-shadow: none;
+}
+
+.button.is-danger {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 15%, transparent);
+    box-shadow: none;
+}
+.button.is-danger:hover {
+    background: var(--danger-strong);
+    color: var(--on-danger);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--danger-strong) 30%, transparent);
+}
+
+.button.is-small { padding: 4px 10px; font-size: var(--font-size-xs); }
+
+.button.is-icon {
+    padding: 7px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    box-shadow: none;
+}
+.button.is-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+.button.is-icon.active {
+    background: var(--accent-muted);
+    color: var(--accent-text);
+}
+
+.button:disabled, .button[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+/* Format badges: .tag.tag-<format>. Prefer Badge. */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 6px;
+    height: auto;
+    border-radius: 4px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.tag-epub    { --tag-color: var(--fmt-epub); }
+.tag-pdf     { --tag-color: var(--fmt-pdf); }
+.tag-mobi    { --tag-color: var(--fmt-mobi); }
+.tag-azw3    { --tag-color: var(--fmt-azw3); }
+.tag-cbz     { --tag-color: var(--fmt-cbz); }
+.tag-epub, .tag-pdf, .tag-mobi, .tag-azw3, .tag-cbz {
+    color: var(--tag-color);
+    background: color-mix(in srgb, var(--tag-color) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tag-color) 18%, transparent);
+}
+.tag-unknown { background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border); }
+
+/* Text fields: .input (also on <textarea class="input textarea">). Prefer TextField. */
+.input {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    vertical-align: top;
+    appearance: none;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    color: var(--text-primary);
+    padding: 7px 12px;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height);
+    outline: none;
+    box-shadow: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+}
+.input:focus,
+.input:focus-visible {
+    outline: none;
+    border-color: var(--focus-ring-color);
+    box-shadow: 0 0 0 1px var(--focus-ring-color), 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.input::placeholder { color: var(--text-muted); }
+.input[disabled] { opacity: 0.6; cursor: not-allowed; }
+.textarea {
+    display: block;
+    min-width: 100%;
+    max-width: 100%;
+    resize: vertical;
+}
+.textarea[rows] { height: initial; }
+
+/* Native selects: <select class="select">. Prefer SelectField. */
+.select {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    color: var(--text-primary);
+    padding: 7px 12px;
+    font-size: var(--font-size-sm);
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: var(--select-arrow);
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    /* Bulma made single selects 2.5em tall (a :not(.is-multiple) rule won over height: auto). */
+    height: 2.5em;
+}
+.select:focus,
+.select:focus-visible {
+    outline: none;
+    border-color: var(--focus-ring-color);
+    box-shadow: 0 0 0 1px var(--focus-ring-color), 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+.card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ── Legacy modal: .modal.is-active > .modal-background + .modal-card. Prefer BaseModal. ── */
+.modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    z-index: var(--z-modal);
+}
+.modal.is-active { display: flex; }
+.modal-background {
+    position: absolute;
+    inset: 0;
+    background: var(--modal-backdrop);
+    backdrop-filter: blur(10px) saturate(120%);
+}
+.modal-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-modal);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,.05);
+    margin: 0 auto;
+    max-height: calc(100vh - 80px);
+    width: 560px;
+    max-width: calc(100vw - 40px);
+    overflow: hidden;
+}
+.modal-card-head,
+.modal-card-foot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    background: transparent;
+}
+.modal-card-head {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 20px 24px;
+}
+.modal-card-title {
+    flex-grow: 1;
+    flex-shrink: 0;
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+.modal-card-body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    background: transparent;
+    padding: 24px;
+    color: var(--text-primary);
+    overflow: auto;
+}
+.modal-card-foot {
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    padding: 16px 24px;
+}
+
+/* The × close button of legacy modals (<button class="delete">). Prefer IconButton. */
+.delete {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    vertical-align: top;
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1em;
+    outline: none;
+}
+.delete:hover { color: var(--text-primary); }
+.delete:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); }
+.delete::before,
+.delete::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    background-color: currentColor;
+    transform: translateX(-50%) translateY(-50%) rotate(45deg);
+    transform-origin: center center;
+}
+.delete::before { height: 2px; width: 50%; }
+.delete::after { height: 50%; width: 2px; }
+
+/*
+ * BookCard's selection box is a <div class="checkbox">: every .checkbox
+ * gets these three properties, and the card's layout relies on them (the
+ * check icon is positioned inside it). Kept here until BookCard
+ * moves to the Checkbox component (whose classes are prefixed ui-).
+ */
+.checkbox {
+    position: relative;
+    line-height: 1.25;
+    cursor: pointer;
+}
+
+/* ── Form ───────────────────────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+    display: block;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* ── Progress bar (prefer ProgressBar) ──────────────────────── */
+.progress-track {
+    height: 3px;
+    background: var(--bg-hover);
+    border-radius: 99px;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: var(--foil);
+    border-radius: 99px;
+    transition: width 300ms ease;
+}
+
+/* ── Spinner ────────────────────────────────────────────────── */
+/* Global on purpose, so that every loader icon spins. Add class="spinning"
+   to any icon (or use the Spinner component). */
+.spinning,
+.ui-icon-button.-busy svg {   /* an IconButton whose action is running (detect, refresh…) */
+    animation: librarium-spin 1s linear infinite;
+}
+@keyframes librarium-spin {
+    to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .spinning, .ui-icon-button.-busy svg { animation-duration: 3s; }
+}
+
+/* ── Transitions ────────────────────────────────────────────── */
+.fade-enter-active, .fade-leave-active { transition: opacity var(--transition); }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.slide-up-enter-active, .slide-up-leave-active {
+    transition: opacity 200ms ease, transform 200ms ease;
+}
+.slide-up-enter-from, .slide-up-leave-to {
+    opacity: 0;
+    transform: translateY(10px);
+}

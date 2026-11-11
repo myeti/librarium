@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" version="1.1">
+    <!-- Librarium's icon: Nocturne's emblem (themes.css, its cover art), a
+         moon among stars, in the theme's coral foil on its midnight sky.
+         Regenerate the app icons from it: npx tauri icon src/assets/icons/library.svg -->
+    <defs>
+        <linearGradient id="librarium-sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#16244d"/>
+            <stop offset=".55" stop-color="#0c1530"/>
+            <stop offset="1" stop-color="#070d20"/>
+        </linearGradient>
+        <radialGradient id="librarium-glow" cx="512" cy="575" r="420" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f2836f" stop-opacity=".30"/>
+            <stop offset=".55" stop-color="#f2836f" stop-opacity=".10"/>
+            <stop offset="1" stop-color="#f2836f" stop-opacity="0"/>
+        </radialGradient>
+        <!-- Nocturne’s foil, at its 115deg, across the emblem. -->
+        <linearGradient id="librarium-foil" x1="-4.2" y1="47.5" x2="124.2" y2="107.5" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#d96750"/>
+            <stop offset=".30" stop-color="#ffc4b4"/>
+            <stop offset=".50" stop-color="#f08a76"/>
+            <stop offset=".66" stop-color="#ffe0d6"/>
+            <stop offset="1" stop-color="#e0735c"/>
+        </linearGradient>
+    </defs>
+
+    <rect width="1024" height="1024" rx="228" fill="url(#librarium-sky)"/>
+    <rect width="1024" height="1024" rx="228" fill="url(#librarium-glow)"/>
+    <!-- The cover's thin coral rim. -->
+    <rect x="34" y="34" width="956" height="956" rx="196" fill="none" stroke="#f08a76" stroke-opacity=".38" stroke-width="5"/>
+
+    <!-- Faint sky stars. -->
+    <g fill="#e8efff">
+        <circle cx="176" cy="214" r="4" fill-opacity=".45"/>
+        <circle cx="862" cy="300" r="3.5" fill-opacity=".40"/>
+        <circle cx="128" cy="610" r="3" fill-opacity=".35"/>
+        <circle cx="900" cy="742" r="4" fill-opacity=".35"/>
+        <circle cx="770" cy="150" r="3" fill-opacity=".40"/>
+    </g>
+
+    <!-- The emblem, in its own 120 × 160 units (moon centre 60,88 → 512,575). -->
+    <g transform="translate(152 47) scale(6)" fill="url(#librarium-foil)">
+        <circle cx="60" cy="88" r="50" fill-opacity=".16"/>
+        <circle cx="60" cy="88" r="50" fill="none" stroke="url(#librarium-foil)" stroke-width="1.3"/>
+        <path d="M15.4 65A50 50 0 1 0 104.6 65A47.6 47.6 0 1 1 15.4 65Z"/>
+        <path d="M44 62L45.12 64.88L48 66L45.12 67.12L44 70L42.88 67.12L40 66L42.88 64.88Z"/>
+        <path d="M82 81L82.84 83.16L85 84L82.84 84.84L82 87L81.16 84.84L79 84L81.16 83.16Z"/>
+        <path d="M60 17L61.4 20.6L65 22L61.4 23.4L60 27L58.6 23.4L55 22L58.6 20.6Z"/>
+        <circle cx="70" cy="58" r="1.2"/>
+        <circle cx="34" cy="92" r="1"/>
+        <circle cx="88" cy="108" r="1.1"/>
+        <circle cx="52" cy="100" r="0.9"/>
+        <circle cx="76" cy="70" r="0.8"/>
+        <circle cx="28" cy="40" r="1"/>
+        <circle cx="96" cy="34" r="1.2"/>
+        <circle cx="40" cy="120" r="0.8"/>
+    </g>
+</svg>

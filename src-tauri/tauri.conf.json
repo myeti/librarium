@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Librarium",
+  "version": "../package.json",
+  "identifier": "com.librarium.desktop",
+  "build": {
+    "beforeDevCommand": "npm run vue:dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run vue:build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Librarium",
+        "width": 1600,
+        "height": 1000,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": true,
+        "resizable": true,
+        "center": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' tauri: asset:; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; font-src 'self' tauri: data: blob: asset: http://asset.localhost; img-src 'self' data: asset: http://asset.localhost tauri: blob: https:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost https://www.googleapis.com https://openlibrary.org https://gutendex.com; frame-src blob: asset: http://asset.localhost; object-src 'none';",
+      "devCsp": "default-src 'self' tauri: asset:; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; font-src 'self' tauri: data: blob: asset: http://asset.localhost; img-src 'self' data: asset: http://asset.localhost tauri: blob: https:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost ws://localhost:1420 ws://localhost:1421 https://www.googleapis.com https://openlibrary.org https://gutendex.com; frame-src blob: asset: http://asset.localhost; object-src 'none';",
+      "assetProtocol": {
+        "enable": true,
+        "scope": []
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "nsis", "msi", "deb", "appimage"],
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["xdg-utils"],
+        "recommends": ["gstreamer1.0-plugins-good"],
+        "files": {
+          "/usr/lib/udev/rules.d/70-librarium-kindle.rules": "linux/70-librarium-kindle.rules"
+        }
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "createUpdaterArtifacts": false,
+    "publisher": "Magalon",
+    "copyright": "© 2025 Magalon",
+    "category": "Productivity",
+    "shortDescription": "A personal ebook library manager.",
+    "longDescription": "Librarium is a desktop ebook manager for EPUB, PDF, MOBI, AZW3 and CBZ files. Organize your collection, edit metadata, track reading progress, and send books directly to your Kindle or Kobo device.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/myeti/librarium/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY4NkRFMDIxRjUzMzlCQTcKUldTbm16UDFJZUJ0K0JOTmxtY2kwdmhIYzBVaEJLbERESDRTSysyUUFQZi8xeDRmeEJpQWpZMCsK"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+# Dependencies
+# No trailing slash: also ignores a node_modules symlink (agent worktrees).
+node_modules
+
+# Build output
+dist/
+src-tauri/target/
+
+# Tauri generated
+src-tauri/gen/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.claude/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Local debugging material (may contain copyrighted books)
+debug/

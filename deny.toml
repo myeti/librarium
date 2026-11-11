@@ -1,0 +1,61 @@
+# cargo-deny configuration (https://embarkstudios.github.io/cargo-deny/).
+# Run locally, from the repository root: cargo deny --manifest-path src-tauri/Cargo.toml check
+# (no --config: cargo-deny finds this file by itself, at the root)
+
+[graph]
+# Only the platforms we ship, so mobile- or wasm-only crates don't count.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+# Default features: what actually ships.
+
+[advisories]
+# Vulnerabilities and unsound crates fail. "Unmaintained" notices only fail
+# for our direct dependencies: transitive ones (gtk-rs 0.18, unic-*, …) come
+# with Tauri and can't be fixed here.
+unmaintained = "workspace"
+yanked = "warn"
+ignore = []
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+unused-allowed-license = "allow"
+exceptions = [
+    # The app itself.
+    { allow = ["LicenseRef-Proprietary"], crate = "librarium" },
+    # GPL-3.0-or-later, statically linked into the proprietary binary.
+    # Listed here so CI stays green while the app's own licence is being made
+    # compatible with it, and so any NEW copyleft crate still fails.
+    { allow = ["GPL-3.0-or-later"], crate = "boko" },  # vendored, modified (src-tauri/vendor/boko)
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
