@@ -4,7 +4,30 @@ All notable changes to Librarium. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org).
 
-## [Unreleased] — 0.6.0
+## [Unreleased] — 0.6.2
+
+### Linux
+
+- **Sounds play on every distribution**: the AppImage now brings its own
+  GStreamer. Without it, on a system missing some of GStreamer's plugins
+  (Fedora without `gstreamer1-plugins-base` and `-good`), creating the first
+  user could break the window.
+- **Ejecting an e-reader works on recent distributions** such as Fedora:
+  the system tools the AppImage starts (`udisksctl`, `gio`, `lsblk`) no
+  longer pick up its bundled libraries, which made them fail.
+
+### Diagnostics
+
+- On macOS and Linux, what system libraries print (GTK, GStreamer, the web
+  view) also goes into the log file (Help › Open Log Folder), not only to a
+  terminal.
+
+## [0.6.1] — 2026-11-11
+
+- **Kindles from 2024 on (MTP) are on by default.** The switch in
+  Settings › Devices turns them off.
+
+## [0.6.0] — 2026-11-11
 
 The first release.
 
@@ -50,8 +73,8 @@ The first release.
   home screen.
 - Copy books from the device into the library, remove them from it, eject
   it (macOS and Linux). Several e-readers at once.
-- **Experimental:** Kindles from 2024 on, which connect over MTP. On by
-  default; a switch in the device settings turns it off.
+- **Experimental:** Kindles from 2024 on, which connect over MTP. Off by
+  default.
 
 ### More books
 

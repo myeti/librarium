@@ -19,7 +19,7 @@
 
 use std::io;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
 use super::detect::linux::{mounted, LSBLK_ARGS};
@@ -165,7 +165,7 @@ pub(crate) fn run_with_timeout(
     args: &[&str],
     timeout: Duration,
 ) -> io::Result<Output> {
-    let mut child = Command::new(program)
+    let mut child = crate::host::host_command(program)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

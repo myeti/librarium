@@ -3,6 +3,7 @@ mod convert;
 mod epub;
 mod error;
 mod fsutil;
+mod host;
 mod logging;
 mod menu;
 mod models;

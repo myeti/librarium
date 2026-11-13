@@ -410,7 +410,7 @@ pub(crate) mod linux {
 
     #[cfg(target_os = "linux")]
     pub(super) fn candidates() -> Vec<Candidate> {
-        std::process::Command::new("lsblk")
+        crate::host::host_command("lsblk")
             .args(LSBLK_ARGS)
             .output()
             .map(|o| to_candidates(&o.stdout))
