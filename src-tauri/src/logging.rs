@@ -23,6 +23,10 @@
 //! `LogLines` (both test-only). Shared plumbing with no handle at hand (the
 //! `blocking` wrapper of the library commands) uses [`log_global`], which
 //! reaches the panel once [`install`] has run at startup.
+//!
+//! On macOS and Linux, what other code writes to stderr goes to the log file
+//! too ([`capture_stderr`]): GTK, GLib, GStreamer and the web view's own
+//! process (`WebKitWebProcess`) print their errors there, not through us.
 
 use std::cell::Cell;
 use std::path::PathBuf;
@@ -142,6 +146,76 @@ fn install_panic_hook() {
     }));
 }
 
+/// Copy every line written to stderr into the log file too, as
+/// `[stderr] …`, and still to the terminal. That covers what never goes
+/// through [`log`]: messages from GTK, GLib and GStreamer, and from
+/// WebKitGTK's `WebKitWebProcess`, which inherits our stderr (a missing
+/// GStreamer element, a GLib CRITICAL). Call first thing, before any of them
+/// starts, so the web view's process inherits the pipe. Lines read before
+/// the log plugin is up reach the terminal only. Best effort: if anything
+/// fails, stderr is left as it was. Unix only (Windows' web view doesn't
+/// print there).
+#[cfg(unix)]
+pub(crate) fn capture_stderr() {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader, Write};
+    use std::os::fd::FromRawFd;
+
+    // SAFETY: plain fd juggling on descriptors this function creates; each
+    // is closed on every failure path, and the two kept are owned by `File`s
+    // moved into the reader thread.
+    unsafe {
+        let mut fds = [0; 2];
+        if libc::pipe(fds.as_mut_ptr()) != 0 {
+            return;
+        }
+        let [read_end, write_end] = fds;
+        let original = libc::dup(libc::STDERR_FILENO);
+        if original < 0 {
+            libc::close(read_end);
+            libc::close(write_end);
+            return;
+        }
+        let reader = File::from_raw_fd(read_end);
+        let mut terminal = File::from_raw_fd(original);
+        // The reader runs first: stderr only becomes the pipe once someone
+        // drains it (a full pipe nobody reads would block every writer).
+        let spawned = std::thread::Builder::new()
+            .name("stderr-to-log".into())
+            .spawn(move || {
+                for line in BufReader::new(reader).split(b'\n') {
+                    let Ok(bytes) = line else { break };
+                    let _ = terminal.write_all(&bytes);
+                    let _ = terminal.write_all(b"\n");
+                    let text = String::from_utf8_lossy(&bytes);
+                    let text = text.trim_end();
+                    if !text.is_empty() {
+                        log::log!(stderr_level(text), "[stderr] {text}");
+                    }
+                }
+            });
+        if spawned.is_err() || libc::dup2(write_end, libc::STDERR_FILENO) < 0 {
+            // Without a reader, keep stderr as it is (the thread, if any,
+            // ends when the write end closes).
+            libc::close(write_end);
+            return;
+        }
+        libc::close(write_end);
+    }
+}
+
+/// The level a stderr line is logged with: GLib's CRITICAL and errors are
+/// errors, the rest (GTK messages, GStreamer warnings…) warnings.
+#[cfg(unix)]
+fn stderr_level(line: &str) -> log::Level {
+    let upper = line.to_ascii_uppercase();
+    if upper.contains("CRITICAL") || upper.contains("ERROR") || upper.contains("FATAL") {
+        log::Level::Error
+    } else {
+        log::Level::Warn
+    }
+}
+
 /// Where AppHandle-free code sends its diagnostic lines: [`logger`] in the
 /// app, `no_log` or `LogLines::sink` in tests. Keeping `AppHandle` out of
 /// that code is what makes it unit-testable.
@@ -180,6 +254,53 @@ impl LogLines {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Run in a child process (it takes over that process's stderr): with
+    /// the capture on, writing far more than a pipe holds neither blocks nor
+    /// loses a byte on the way to the real stderr.
+    #[cfg(unix)]
+    #[test]
+    fn captured_stderr_still_reaches_the_terminal_in_full() {
+        const CHILD: &str = "LIBRARIUM_STDERR_CHILD";
+        let line = "x".repeat(99);
+        if std::env::var_os(CHILD).is_some() {
+            capture_stderr();
+            for _ in 0..2000 {
+                eprintln!("{line}");
+            }
+            // Let the reader thread drain the pipe before the process exits.
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            return;
+        }
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "logging::tests::captured_stderr_still_reaches_the_terminal_in_full",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(out.status.success());
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(stderr.lines().filter(|l| *l == line).count(), 2000);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stderr_lines_are_errors_or_warnings() {
+        let critical =
+            "(WebKitWebProcess:31150): GLib-GObject-CRITICAL **: invalid (NULL) pointer instance";
+        assert_eq!(stderr_level(critical), log::Level::Error);
+        assert_eq!(
+            stderr_level("GStreamer element appsink not found. Please install it."),
+            log::Level::Warn
+        );
+        assert_eq!(
+            stderr_level("Gtk-Message: Failed to load module \"canberra-gtk-module\""),
+            log::Level::Warn
+        );
+    }
 
     #[test]
     fn levels_follow_the_words_the_lines_carry() {

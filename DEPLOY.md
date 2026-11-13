@@ -142,7 +142,7 @@ To revisit later: Apple Developer ID plus notarisation, and Windows Authenticode
 
 - **AppImage** updates itself through the in-app updater. **`.deb`** doesn't (see `latest.json` above): users install the next `.deb`.
 - Built on Ubuntu 24.04, so they need glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 and later).
-- The `.deb` depends on `xdg-utils` (opening links and folders) and recommends `gstreamer1.0-plugins-good` (the app's sounds). The AppImage doesn't bundle GStreamer (`bundleMediaFramework: false`, it would add 15–35 MB), so sounds may not play there.
+- The `.deb` depends on `xdg-utils` (opening links and folders) and recommends `gstreamer1.0-plugins-good` (the app's sounds). The AppImage bundles GStreamer and its plugins (`bundleMediaFramework: true`, 15–35 MB more), so sounds play on any distribution: without them, a system lacking GStreamer's `appsink` or `autoaudiosink` (Fedora without `gstreamer1-plugins-base`/`-good`) broke the web view when the app played a sound.
 - **Kindle udev rule** (`src-tauri/linux/70-librarium-kindle.rules`): gives the logged-in user access to Amazon USB devices (vendor `1949`) for the experimental MTP support of 2024+ Kindles (on by default). The `.deb` installs it to `/usr/lib/udev/rules.d/`. AppImage users install it by hand; the file is attached to every release:
 
   ```bash

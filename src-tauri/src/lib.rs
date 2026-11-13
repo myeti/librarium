@@ -42,6 +42,11 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // GTK, GStreamer and the web view's process print to stderr: copy it
+    // into the log file too (before any of them starts).
+    #[cfg(unix)]
+    logging::capture_stderr();
+
     tauri::Builder::default()
         // First: a second launch hands over to the running app (and focuses
         // its window) instead of starting another instance that would edit

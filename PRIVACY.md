@@ -231,7 +231,7 @@ the file can read your books and their metadata.
 | What | Where |
 |---|---|
 | Settings, `librarium-config.json`: library folder, theme, language, your statistics choice, the update and news settings, the OPDS sharing password and your **Google Books API key** (in plain text), your OPDS catalogs (with their API keys) | macOS `~/Library/Application Support/com.librarium.desktop/`, Windows `%APPDATA%\com.librarium.desktop\`, Linux `~/.local/share/com.librarium.desktop/` |
-| Log file, `Librarium.log` (five files of 5 MB at most): what the debug console shows, including file names and paths. It never leaves your computer | macOS `~/Library/Logs/com.librarium.desktop/`, Windows `%LOCALAPPDATA%\com.librarium.desktop\logs\`, Linux `~/.local/share/com.librarium.desktop/logs/` |
+| Log file, `Librarium.log` (five files of 5 MB at most): what the debug console shows, including file names and paths, and on macOS and Linux the messages system libraries print (GTK, GStreamer, the web view). It never leaves your computer | macOS `~/Library/Logs/com.librarium.desktop/`, Windows `%LOCALAPPDATA%\com.librarium.desktop\logs\`, Linux `~/.local/share/com.librarium.desktop/logs/` |
 | Reader cache: Kindle books converted to EPUB for the reader, 500 MB at most, safe to delete | macOS `~/Library/Caches/com.librarium.desktop/reader/`, Windows `%LOCALAPPDATA%\com.librarium.desktop\reader\`, Linux `~/.cache/com.librarium.desktop/reader/` |
 | Web storage: the current user, view preferences, the OPDS server switch and port, the last message seen, and the installation ID once a report or feedback needed it | Managed by the system's web view |
 
